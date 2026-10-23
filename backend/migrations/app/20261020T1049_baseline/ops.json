@@ -1,0 +1,382 @@
+[
+  {
+    "id": "schema.public",
+    "label": "Create schema \"public\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create schema \"public\"",
+        "sql": "CREATE SCHEMA IF NOT EXISTS \"public\"",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "table.Ingredient",
+    "label": "Create table \"Ingredient\"",
+    "summary": "Creates table \"Ingredient\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Ingredient"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Ingredient\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Ingredient\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Ingredient\"",
+        "sql": "CREATE TABLE \"public\".\"Ingredient\" (\n  \"calories\" float8,\n  \"carbohydrates\" float8,\n  \"fats\" float8,\n  \"id\" SERIAL NOT NULL,\n  \"name\" text NOT NULL,\n  \"proteins\" float8,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Ingredient\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Ingredient\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.Recipe",
+    "label": "Create table \"Recipe\"",
+    "summary": "Creates table \"Recipe\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Recipe"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Recipe\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Recipe\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Recipe\"",
+        "sql": "CREATE TABLE \"public\".\"Recipe\" (\n  \"description\" text NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"name\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Recipe\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Recipe\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.RecipeIngredient",
+    "label": "Create table \"RecipeIngredient\"",
+    "summary": "Creates table \"RecipeIngredient\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "RecipeIngredient"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"RecipeIngredient\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RecipeIngredient\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"RecipeIngredient\"",
+        "sql": "CREATE TABLE \"public\".\"RecipeIngredient\" (\n  \"amountGr\" float8 NOT NULL,\n  \"customAmount\" float8,\n  \"customUnit\" text,\n  \"ingredientId\" int4 NOT NULL,\n  \"recipeId\" int4 NOT NULL,\n  PRIMARY KEY (\"recipeId\", \"ingredientId\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"RecipeIngredient\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RecipeIngredient\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Ingredient.Ingredient_name_key",
+    "label": "Add unique constraint on \"Ingredient\" (name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Ingredient_name_key",
+        "table": "Ingredient"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Ingredient_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Ingredient_name_key",
+          "public",
+          "\"public\".\"Ingredient\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Ingredient_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"Ingredient\" ADD CONSTRAINT \"Ingredient_name_key\" UNIQUE (\"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Ingredient_name_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Ingredient_name_key",
+          "public",
+          "\"public\".\"Ingredient\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Recipe.Recipe_name_key",
+    "label": "Add unique constraint on \"Recipe\" (name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Recipe_name_key",
+        "table": "Recipe"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Recipe_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Recipe_name_key",
+          "public",
+          "\"public\".\"Recipe\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Recipe_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"Recipe\" ADD CONSTRAINT \"Recipe_name_key\" UNIQUE (\"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Recipe_name_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Recipe_name_key",
+          "public",
+          "\"public\".\"Recipe\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.RecipeIngredient.RecipeIngredient_ingredientId_idx_0bb57833",
+    "label": "Create index \"RecipeIngredient_ingredientId_idx_0bb57833\" on \"RecipeIngredient\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "RecipeIngredient_ingredientId_idx_0bb57833",
+        "table": "RecipeIngredient"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"RecipeIngredient_ingredientId_idx_0bb57833\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RecipeIngredient_ingredientId_idx_0bb57833\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"RecipeIngredient_ingredientId_idx_0bb57833\"",
+        "sql": "CREATE INDEX \"RecipeIngredient_ingredientId_idx_0bb57833\" ON \"public\".\"RecipeIngredient\" (\"ingredientId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"RecipeIngredient_ingredientId_idx_0bb57833\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RecipeIngredient_ingredientId_idx_0bb57833\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.RecipeIngredient.RecipeIngredient_recipeId_idx_037d8d32",
+    "label": "Create index \"RecipeIngredient_recipeId_idx_037d8d32\" on \"RecipeIngredient\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "RecipeIngredient_recipeId_idx_037d8d32",
+        "table": "RecipeIngredient"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"RecipeIngredient_recipeId_idx_037d8d32\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RecipeIngredient_recipeId_idx_037d8d32\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"RecipeIngredient_recipeId_idx_037d8d32\"",
+        "sql": "CREATE INDEX \"RecipeIngredient_recipeId_idx_037d8d32\" ON \"public\".\"RecipeIngredient\" (\"recipeId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"RecipeIngredient_recipeId_idx_037d8d32\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RecipeIngredient_recipeId_idx_037d8d32\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.RecipeIngredient.RecipeIngredient_ingredientId_fkey",
+    "label": "Add foreign key \"RecipeIngredient_ingredientId_fkey\" on \"RecipeIngredient\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "RecipeIngredient_ingredientId_fkey",
+        "table": "RecipeIngredient"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"RecipeIngredient_ingredientId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RecipeIngredient_ingredientId_fkey",
+          "public",
+          "\"public\".\"RecipeIngredient\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"RecipeIngredient_ingredientId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"RecipeIngredient\"\nADD CONSTRAINT \"RecipeIngredient_ingredientId_fkey\"\nFOREIGN KEY (\"ingredientId\")\nREFERENCES \"public\".\"Ingredient\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"RecipeIngredient_ingredientId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RecipeIngredient_ingredientId_fkey",
+          "public",
+          "\"public\".\"RecipeIngredient\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.RecipeIngredient.RecipeIngredient_recipeId_fkey",
+    "label": "Add foreign key \"RecipeIngredient_recipeId_fkey\" on \"RecipeIngredient\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "RecipeIngredient_recipeId_fkey",
+        "table": "RecipeIngredient"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"RecipeIngredient_recipeId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RecipeIngredient_recipeId_fkey",
+          "public",
+          "\"public\".\"RecipeIngredient\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"RecipeIngredient_recipeId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"RecipeIngredient\"\nADD CONSTRAINT \"RecipeIngredient_recipeId_fkey\"\nFOREIGN KEY (\"recipeId\")\nREFERENCES \"public\".\"Recipe\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"RecipeIngredient_recipeId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RecipeIngredient_recipeId_fkey",
+          "public",
+          "\"public\".\"RecipeIngredient\""
+        ]
+      }
+    ]
+  }
+]

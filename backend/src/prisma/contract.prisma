@@ -1,0 +1,30 @@
+// use prisma-8
+
+model Ingredient {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique
+  recipes       RecipeIngredient[]
+  calories      Float?
+  proteins      Float?
+  fats          Float?
+  carbohydrates Float?
+}
+
+model Recipe {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  description String
+  ingredients RecipeIngredient[]
+}
+
+model RecipeIngredient {
+  recipeId     Int
+  ingredientId Int
+  amountGr     Float
+  customAmount Float?
+  customUnit   String?
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  recipe       Recipe     @relation(fields: [recipeId], references: [id])
+
+  @@id([recipeId, ingredientId])
+}
