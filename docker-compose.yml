@@ -10,18 +10,17 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql
-  pg_tests:
-    image: postgres:latest
-    container_name: cookly-postgres-test
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cookly-backend
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: cookly-tests
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
     ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql
-volumes:
-  postgres_data:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://admin:admin@postgres:5432/cookly?schema=public
+    depends_on:
+      - postgres
