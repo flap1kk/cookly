@@ -62,9 +62,9 @@ export function parseRecipesWorkbook(input: Buffer | Uint8Array): ParsedWorkbook
   const ingredientRows = rowsOf(workbook, 'Ингредиенты');
   const recipeRows = rowsOf(workbook, 'Рецепты');
   const compositionRows = rowsOf(workbook, 'Состав');
-  assertHeaders(ingredientRows, ['Название', 'Калории\n(ккал на 100 г)', 'Белки\n(г на 100 г)', 'Жиры\n(г на 100 г)', 'Углеводы\n(г на 100 г)'], 'Ингредиенты');
+  assertHeaders(ingredientRows, ['Название', 'Калории\r\n(ккал на 100 г)', 'Белки\r\n(г на 100 г)', 'Жиры\r\n(г на 100 г)', 'Углеводы\r\n(г на 100 г)'], 'Ингредиенты');
   assertHeaders(recipeRows, ['Название', 'Описание'], 'Рецепты');
-  assertHeaders(compositionRows, ['Рецепт', 'Ингредиент', 'Количество, г', 'Своё количество\n(целое число)', 'Своя единица'], 'Состав');
+  assertHeaders(compositionRows, ['Рецепт', 'Ингредиент', 'Количество, г', 'Своё количество\r\n(целое число)', 'Своя единица'], 'Состав');
 
   const ingredients: IngredientInDTO[] = [];
   const ingredientNames = new Set<string>();
