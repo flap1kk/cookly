@@ -239,23 +239,11 @@
       default: 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=800&q=80'
     };
 
-    function resolveRecipeImage(recipe) {
-      if (typeof recipe.imageUrl === 'string' && recipe.imageUrl.trim()) return recipe.imageUrl;
 
-      const ingredientNames = Array.isArray(recipe.ingredients)
-        ? recipe.ingredients.flatMap(item => [item.name, item.ingredient?.name])
-        : Array.isArray(recipe.ingredientsList)
-          ? recipe.ingredientsList.map(item => item.name)
-          : [];
-      const searchableText = [recipe.name, recipe.title, recipe.description, ...ingredientNames]
-        .filter(Boolean).join(' ').toLowerCase();
+function resolveRecipeImage(recipe) {
+  return './assets/oguzok.jpg';
+}
 
-      if (/паст|карбонар|спагет|pasta|spaghetti/.test(searchableText)) return RECIPE_IMAGE_BY_KIND.pasta;
-      if (/лосос|рыб|salmon|fish|форел|тунец/.test(searchableText)) return RECIPE_IMAGE_BY_KIND.fish;
-      if (/куриц|курин|chicken|цыплён|цыплен/.test(searchableText)) return RECIPE_IMAGE_BY_KIND.chicken;
-      if (/омлет|яйц|яич|egg|breakfast/.test(searchableText)) return RECIPE_IMAGE_BY_KIND.eggs;
-      return RECIPE_IMAGE_BY_KIND.default;
-    }
 
     function useLocalImageFallback(event) {
       const image = event.currentTarget;
@@ -367,8 +355,10 @@
             setBackendOnline(true);
           } catch (error) {
             if (cancelled) return;
+
+            console.error('Не удалось загрузить ингредиенты:', error);
             setBackendOnline(false);
-            setIngredients(MOCK_INGREDIENTS);
+            setIngredients([]);
           }
         };
 
@@ -382,7 +372,7 @@
         const controller = new AbortController();
 
         if (!backendOnline || forceDemoMode) {
-          setRecipesList(MOCK_RECIPES);
+          setRecipesList([]);
           return () => controller.abort();
         }
 
@@ -395,18 +385,20 @@
             if (!cancelled) setRecipesList(Array.isArray(data) ? data.map(apiRecipeToUi) : []);
           })
           .catch((error) => {
-            if (!cancelled && error.name !== 'AbortError') setRecipesList(MOCK_RECIPES);
-          });
-
+          if (!cancelled && error.name !== 'AbortError') {
+            console.error('Не удалось загрузить рецепты:', error);
+            setRecipesList([]);
+          }
+        });
         return () => { cancelled = true; controller.abort(); };
       }, [backendOnline, forceDemoMode]);
 
       // Debounced ingredient suggestions; the input is sent to /ingredients/search.
       useEffect(() => {
         if (!backendOnline || forceDemoMode) {
-          setIngredients(MOCK_INGREDIENTS);
-          return undefined;
-        }
+      setIngredients([]);
+      return undefined;
+    }
 
         const controller = new AbortController();
         const timer = window.setTimeout(async () => {
@@ -427,13 +419,58 @@
       }, [searchIngQuery, backendOnline, forceDemoMode]);
 
       // Filter ingredient suggestions and hide already selected ingredients.
-      const filteredIngredients = useMemo(() => {
-        const query = searchIngQuery.trim().toLowerCase();
-        return ingredients.filter(i =>
-          (!query || i.name.toLowerCase().includes(query)) &&
-          !selectedIngredients.some(s => String(s.id) === String(i.id))
-        ).slice(0, 12);
-      }, [ingredients, searchIngQuery, selectedIngredients]);
+
+
+const POPULAR_INGREDIENTS = [
+  'Яйцо куриное',
+  'Рис',
+  'Огурец',
+  'Куриное филе',
+  'Картофель',
+  'Молоко',
+  'Макароны',
+  'Гречка',
+  'Лук репчатый',
+  'Мука пшеничная',
+  'Фарш говяжий',
+  'Чеснок'
+];
+
+// Фильтруем ингредиенты и скрываем уже выбранные.
+const filteredIngredients = useMemo(() => {
+  const query = searchIngQuery.trim().toLowerCase();
+
+  const available = ingredients.filter(i =>
+    (!query || i.name.toLowerCase().includes(query)) &&
+    !selectedIngredients.some(
+      s => String(s.id) === String(i.id)
+    )
+  );
+
+  // Без поискового запроса показываем популярные первыми.
+  if (!query) {
+    available.sort((a, b) => {
+      const indexA = POPULAR_INGREDIENTS.findIndex(
+        name => name.trim().toLowerCase() ===
+                a.name.trim().toLowerCase()
+      );
+
+      const indexB = POPULAR_INGREDIENTS.findIndex(
+        name => name.trim().toLowerCase() ===
+                b.name.trim().toLowerCase()
+      );
+
+      const priorityA = indexA === -1 ? 999 : indexA;
+      const priorityB = indexB === -1 ? 999 : indexB;
+
+      return priorityA - priorityB;
+    });
+  }
+
+  return available.slice(0, 12);
+}, [ingredients, searchIngQuery, selectedIngredients]);
+
+
 
       // Debounced short search by recipe name. Details are loaded when a result is opened.
       useEffect(() => {
@@ -445,13 +482,10 @@
         }
 
         if (!backendOnline || forceDemoMode) {
-          setSearchResults(MOCK_RECIPES.filter(recipe =>
-            recipe.title.toLowerCase().includes(query.toLowerCase()) ||
-            recipe.description?.toLowerCase().includes(query.toLowerCase())
-          ));
-          setRecipeSearchLoading(false);
-          return undefined;
-        }
+        setSearchResults([]);
+        setRecipeSearchLoading(false);
+        return undefined;
+      }
 
         const controller = new AbortController();
         const timer = window.setTimeout(async () => {
@@ -509,28 +543,35 @@
         setMatchedRecipes([]);
         let results = [];
 
-        try {
-          if (backendOnline && !forceDemoMode) {
-            const response = await fetch(`${API_URL}/recipes/searchByIngredients`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ids: selectedIngredients.map(ingredient => Number(ingredient.id)) })
-            });
-            if (!response.ok) throw new Error('Ingredient matching failed');
-            const data = await response.json();
-            results = Array.isArray(data) ? data.map(apiRecipeToUi) : [];
-          } else {
-            const selectedIds = new Set(selectedIngredients.map(ingredient => String(ingredient.id)));
-            results = MOCK_RECIPES.filter(recipe => recipe.ingredientIds.some(id => selectedIds.has(String(id))));
-          }
-        } catch (error) {
-          console.error('Could not fetch recipes by ingredients:', error);
-          setCookSearchMessage('Не удалось получить результаты API. Показаны демо-результаты.');
-          const selectedIds = new Set(selectedIngredients.map(ingredient => String(ingredient.id)));
-          results = MOCK_RECIPES.filter(recipe => recipe.ingredientIds.some(id => selectedIds.has(String(id))));
-        } finally {
-          setIsGenerating(false);
-        }
+
+try {
+  if (backendOnline && !forceDemoMode) {
+    const response = await fetch(`${API_URL}/recipes/searchByIngredients`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ids: selectedIngredients.map(ingredient => Number(ingredient.id))
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Ingredient matching failed');
+    }
+
+    const data = await response.json();
+    results = Array.isArray(data) ? data.map(apiRecipeToUi) : [];
+  } else {
+    results = [];
+    setCookSearchMessage('API недоступно. Проверьте подключение к серверу.');
+  }
+} catch (error) {
+  console.error('Не удалось подобрать рецепты:', error);
+  setCookSearchMessage('Не удалось получить рецепты с сервера. Попробуйте позже.');
+  results = [];
+} finally {
+  setIsGenerating(false);
+}
+
 
         setMatchedRecipes(results);
         if (results.length === 0) {
@@ -567,6 +608,18 @@
                   </span>
                 </div>
               </div>
+
+<button
+  onClick={() => {
+    document.getElementById('teacher-quote')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+  }}
+  className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 hover:bg-slate-200 transition-colors"
+>
+  Преподавателю
+</button>
 
               {/* Status Indicator & Demo Toggle */}
               <div className="flex items-center gap-3">
@@ -740,7 +793,9 @@
                     </>
                   ) : (
                     <>
-                      <i data-lucide="wand-2" className="w-5 h-5"></i>
+                      <span className="w-5 h-5 inline-flex items-center justify-center">
+  ✨
+                      </span>
                       <span>Подобрать рецепты ({selectedIngredients.length})</span>
                     </>
                   )}
@@ -857,6 +912,29 @@
               onClose={() => setActiveRecipeModal(null)}
             />
           )}
+
+          {/* QUOTE FOR TEACHER */}
+          <footer
+            id="teacher-quote"
+            className="bg-white border-t border-orange-100 mt-16 py-10 px-4 text-center"
+          >
+            <blockquote className="max-w-3xl mx-auto">
+              <p className="text-lg md:text-xl italic text-slate-700 leading-relaxed">
+                «Каждый человек имеет право на второй шанс. Кто-то заслужил этот шанс долгой и кропотливой работой, некоторым сама жизнь даёт второй шанс. Кто-то хочет получить второй шанс, хотя сам боится себе в этом сознаться — в общем, жизнь полна сюрпризов!»
+              </p>
+
+              <p className="mt-4 text-sm text-slate-500">
+                — «Кухня»
+              </p>
+
+              <p className="mt-6 max-w-2xl mx-auto text-sm md:text-base text-slate-600 leading-relaxed">
+                Простите нас за ситуацию с этим проектом. У нас действительно
+                всё очень неудачно сложилось. Мы понимаем, что результат мог
+                быть лучше, и искренне сожалеем, что так получилось.
+                Спасибо за понимание.
+              </p>
+            </blockquote>
+          </footer>
 
           {/* FOOTER */}
           <footer className="bg-white border-t border-orange-100/60 mt-16 py-8">
@@ -1024,6 +1102,7 @@
                       </p>
                     </div>
                   ))}
+
                 </div>
               </div>
 
@@ -1036,6 +1115,9 @@
     // Render App
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
+
+
+
   </script>
 </body>
 </html>
