@@ -23,6 +23,6 @@ app.route('/ingredients', ingredients);
 
 const port = Number(process.env.PORT) || 3000;
 
-serve({ fetch: app.fetch, port }, (info) => {
+serve({ fetch: app.fetch, port, hostname : "0.0.0.0" }, (info) => {
   console.log(`Cookly API is running on http://localhost:${info.port}/api`);
 });

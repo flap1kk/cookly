@@ -35,21 +35,588 @@
 * **Команда:** ЛИЗА АФЕРОВА!
 
 
- 
 
-## API implementation
 
-The backend implements the API described in `api-doc.txt`. Route/controller files are separated by entity and delegate all business logic to services:
+# Cookly — кулинарный помощник
 
-- `backend/src/app/routes/ingredients.ts` — thin controller for `GET /api/ingredients/search?q=...`
-- `backend/src/app/routes/recipes.ts` — thin controller for recipe search, recipe details, and ingredient-based matching
-- `backend/src/app/services/ingredient.service.ts` — input validation and ingredient response DTOs
-- `backend/src/app/services/recipe.service.ts` — input validation, recipe response DTOs, nutrition calculation (КБЖУ), and business rules for ingredient-based search
-- `backend/src/app/services/api-service.error.ts` — service exception mapping and safe Russian-language API error responses
-- `backend/src/app/entity/prisma-implementation/` — repository adapters that query the existing database
+Cookly — веб-приложение, которое помогает находить рецепты по названию и подбирать блюда на основе имеющихся ингредиентов. Проект состоит из frontend-интерфейса, backend API и базы данных PostgreSQL.
 
-The request flow is: route/controller → service → repository → database. Services own validation and response shaping; unexpected repository/runtime exceptions are logged on the server and converted into a safe `{ message: "..." }` response, without exposing database details.
+## Содержание
 
-The API listens on port `3000` by default (`PORT` can override it). Set `DATABASE_URL` to a PostgreSQL database where the project's existing schema and data are available. The API does not modify the recipe or ingredient data files.
+- [Возможности](#возможности)
+- [Технологии](#технологии)
+- [Структура проекта](#структура-проекта)
+- [Требования](#требования)
+- [Запуск локально через Docker](#запуск-локально-через-docker-обязательно)
+- [Импорт данных](#импорт-данных)
+- [Адреса приложения](#адреса-приложения)
+- [Backend API](#backend-api)
+- [Структура базы данных](#структура-базы-данных)
+- [Разработка и отладка](#разработка-и-отладка)
+- [Решение проблем](#решение-проблем)
 
-The ingredient picker and recipe-name dropdown use a 250 ms debounce. Recipe details are loaded by ID when a recipe is opened. For browser compatibility, ingredient-based matching accepts POST JSON `{ "ids": [1, 2] }` as well as the documented GET endpoint (`?ids=1,2` is also supported).
+## Возможности
+
+- Просмотр доступных рецептов.
+- Поиск рецептов по названию.
+- Поиск рецептов по выбранным ингредиентам.
+- Поиск ингредиентов через backend API.
+- Выбор и хранение выбранных ингредиентов в браузере.
+- Отображение карточек рецептов и информации о блюдах.
+- Отображение изображений блюд.
+- Получение данных из PostgreSQL через backend API.
+- Запуск frontend, backend и базы данных в Docker.
+
+## Технологии
+
+### Frontend
+
+- React — пользовательский интерфейс.
+- HTML и Tailwind CSS — разметка и оформление.
+- JavaScript / JSX — клиентская логика.
+- Fetch API — взаимодействие с backend.
+- LocalStorage — хранение выбранных ингредиентов в браузере.
+
+### Backend
+
+- Node.js — среда выполнения.
+- TypeScript — язык разработки.
+- Hono — HTTP-фреймворк для API.
+- Prisma — описание модели данных и инструменты работы со схемой.
+- XLSX — чтение табличных файлов при импорте данных.
+
+### База данных и инфраструктура
+
+- PostgreSQL — хранение рецептов, ингредиентов и связей между ними.
+- Docker — запуск сервисов в контейнерах.
+- Docker Compose — совместный запуск frontend, backend и PostgreSQL.
+
+## Структура проекта
+
+Основные файлы и каталоги проекта:
+
+```text
+cookly/
+├── backend/
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── routes/
+│   │   │   │   ├── ingredients.ts
+│   │   │   │   └── recipes.ts
+│   │   │   └── services/
+│   │   ├── prisma/
+│   │   │   ├── contract.d.ts
+│   │   │   ├── contract.json
+│   │   │   ├── contract.prisma
+│   │   │   └── db.ts
+│   │   ├── scripts/
+│   │   │   └── import-recipes.ts
+│   │   ├── tests/
+│   │   └── index.ts
+│   ├── .dockerignore
+│   ├── Dockerfile
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── prisma.config.ts
+│   ├── tsconfig.json
+│   └── vitest.config.ts
+│
+├── content/
+│   ├── recipes_import_filled.xlsx
+│   └── recipes_import_template.xlsx
+│
+├── frontend/
+│   ├── assets/
+│   │   ├── oguzok.jpg
+│   │   └── recipe-placeholder.svg
+│   ├── scripts/
+│   ├── Dockerfile
+│   ├── index.html
+│   ├── .dockerignore
+│   ├── .gitignore
+│   ├── api-doc.txt
+│   └── docker-compose.yml
+│
+└── README.md
+```
+
+
+### Назначение основных файлов
+
+| Файл | Назначение |
+|---|---|
+| `docker-compose.yml` | Настройка совместного запуска сервисов в Docker |
+| `frontend/index.html` | Основной frontend: интерфейс, React-компоненты и клиентская логика |
+| `frontend/scripts/main.js` | Дополнительный JavaScript-файл; основная логика интерфейса находится в `index.html` |
+| `frontend/assets/` | Изображения и локальные ресурсы интерфейса |
+| `backend/src/index.ts` | Инициализация backend и регистрация API-маршрутов |
+| `backend/src/app/routes/ingredients.ts` | Маршрут поиска ингредиентов |
+| `backend/src/app/routes/recipes.ts` | Маршруты поиска и получения рецептов |
+| `backend/src/app/services/` | Бизнес-логика работы с рецептами и ингредиентами |
+| `backend/src/prisma/contract.prisma` | Описание моделей данных |
+| `backend/src/scripts/import-recipes.ts` | Скрипт импорта исходных данных |
+| `backend/migrations/` | Файлы, относящиеся к миграциям базы данных |
+
+## Требования
+
+Для запуска проекта локально необходимы:
+
+- Git.
+- Docker Desktop с работающим Docker Engine.
+- Docker Compose v2, обычно доступный как команда `docker compose`.
+- Свободные порты `8080`, `3000` и порт PostgreSQL, заданный в конфигурации Compose.
+
+**Node.js и PostgreSQL устанавливать на компьютер отдельно не требуется**, если все необходимые сервисы запускаются контейнерами. Команды npm для backend можно выполнять внутри Docker-контейнера.
+
+Проверить установку Docker:
+
+```bash
+docker --version
+docker compose version
+```
+
+## Запуск локально через Docker (обязательно)
+
+### 1. Скачать проект
+
+Клонируйте репозиторий и перейдите в его каталог:
+
+```bash
+git clone https://github.com/flap1kk/cookly.git
+cd cookly
+```
+
+Если репозиторий уже скачан, достаточно открыть терминал в корневой папке `cookly`.
+
+### 2. Проверить конфигурацию
+
+Убедитесь, что в корне проекта находится `docker-compose.yml`, а необходимые файлы конфигурации доступны.
+
+Перед запуском проверьте настройки:
+
+- Порт frontend — `8080`.
+- Порт backend — `3000`.
+- Backend подключается к PostgreSQL по имени сервиса внутри Docker-сети, а не через `localhost`.
+- Имя базы данных, пользователь и пароль должны соответствовать настройкам PostgreSQL и backend.
+- Переменные окружения должны быть заданы в Compose или в используемом файле окружения, если он предусмотрен проектом.
+
+Не публикуйте реальные пароли и другие секреты в репозитории.
+
+### 3. Собрать и запустить контейнеры
+
+Выполните в корневой папке проекта:
+
+```bash
+docker compose up --build -d
+```
+
+Команда собирает необходимые образы и запускает сервисы в фоновом режиме.
+
+Посмотреть состояние контейнеров:
+
+```bash
+docker compose ps
+```
+
+Посмотреть логи всех сервисов:
+
+```bash
+docker compose logs --tail=100
+```
+
+Посмотреть логи backend:
+
+```bash
+docker compose logs -f backend
+```
+
+Посмотреть логи PostgreSQL:
+
+```bash
+docker compose logs -f postgres
+```
+
+Чтобы остановить вывод логов, нажмите `Ctrl+C`. Это не останавливает сами контейнеры.
+
+### 4. Проверить запуск backend и frontend
+
+Откройте в браузере:
+
+- Frontend: http://localhost:8080
+- Проверка backend: http://localhost:3000/api/health
+
+Если backend и база данных запущены, приложение должно открываться и обращаться к API.
+
+Дополнительно можно проверить API из терминала:
+
+```bash
+curl http://localhost:3000/api/health
+```
+
+Если проверка не проходит, проверьте логи и настройки портов в `docker-compose.yml`.
+
+### 5. Проверить базу данных
+
+Подключитесь к PostgreSQL внутри контейнера:
+
+```bash
+docker compose exec postgres psql -U admin -d cookly
+```
+
+Посмотреть список таблиц:
+
+```sql
+\dt
+```
+
+Проверить количество ингредиентов:
+
+```sql
+SELECT COUNT(*) FROM "Ingredient";
+```
+
+Проверить количество рецептов:
+
+```sql
+SELECT COUNT(*) FROM "Recipe";
+```
+
+Выйти из `psql`:
+
+```sql
+\q
+```
+
+В проекте используются таблицы `Ingredient`, `Recipe` и `RecipeIngredient`.
+
+**Важно:** первый запуск контейнера PostgreSQL и создание структуры базы данных — не одно и то же. Если таблицы ещё не созданы, нужно выполнить предусмотренную для текущей версии проекта процедуру инициализации схемы. Сам по себе запуск `docker compose up` не гарантирует создания таблиц приложения.
+
+### 6. Повторный запуск
+
+После первого запуска контейнеры можно запускать без повторной сборки:
+
+```bash
+docker compose up -d
+```
+
+Для просмотра состояния:
+
+```bash
+docker compose ps
+```
+
+Для остановки контейнеров без удаления базы данных:
+
+```bash
+docker compose stop
+```
+
+Для последующего запуска:
+
+```bash
+docker compose start
+```
+
+Для остановки и удаления контейнеров и сети Compose:
+
+```bash
+docker compose down
+```
+
+Команда `docker compose down` без параметра `-v` не удаляет именованные тома базы данных. **Не используйте `docker compose down -v`, если нужно сохранить данные PostgreSQL.**
+
+## Импорт данных
+
+Проект содержит скрипт импорта рецептов и связанных данных из исходных файлов.
+
+Скрипт импорта:
+
+```text
+backend/src/scripts/import-recipes.ts
+```
+
+Команда, определённая в `backend/package.json`:
+
+```bash
+npm run db:import
+```
+
+Чтобы запустить импорт внутри Docker-контейнера backend, используется:
+
+```bash
+docker compose run --rm --no-deps --entrypoint sh backend -c "npm run db:import"
+```
+
+Эта команда запускает отдельный временный контейнер backend для импорта данных.
+
+Перед импортом необходимо убедиться, что:
+
+1. Контейнер PostgreSQL запущен.
+2. Backend настроен на подключение к нужной базе данных.
+3. Таблицы `Ingredient`, `Recipe` и `RecipeIngredient` уже существуют.
+4. Исходные файлы для импорта доступны по путям, которые ожидает скрипт.
+
+Если данные уже импортированы и приложение работает, повторно выполнять импорт без необходимости не следует.
+
+### Инициализация схемы
+
+В `backend/package.json` предусмотрены команды:
+
+```bash
+npm run contract:emit
+npm run db:migrate
+```
+
+`contract:emit` относится к генерации артефактов контракта Prisma. Скрипт `db:migrate` запускает файл миграции проекта. Перед использованием этих команд проверьте их фактическое поведение и соответствие текущей структуре базы данных.
+
+Не следует считать, что запуск любой из этих команд автоматически создаст все таблицы или безопасно обновит существующую базу.
+
+## Адреса приложения
+
+| Компонент | Адрес |
+|---|---|
+| Frontend | http://localhost:8080 |
+| Backend API | http://localhost:3000/api |
+| Проверка backend | http://localhost:3000/api/health |
+| Поиск ингредиентов | http://localhost:3000/api/ingredients/search?q= |
+| Поиск рецептов | http://localhost:3000/api/recipes/search?q= |
+
+Эти адреса предназначены для локального запуска. Если порты изменены в конфигурации Docker Compose, необходимо использовать фактические значения из конфигурации.
+
+## Backend API
+
+Основной API имеет префикс `/api`.
+
+### Проверка состояния
+
+```http
+GET /api/health
+```
+
+Используется для проверки доступности backend.
+
+### Поиск ингредиентов
+
+```http
+GET /api/ingredients/search?q=курица
+```
+
+Параметр `q` содержит поисковый запрос.
+
+Пример:
+
+```bash
+curl "http://localhost:3000/api/ingredients/search?q=курица"
+```
+
+### Поиск рецептов по названию
+
+```http
+GET /api/recipes/search?q=паста
+```
+
+Параметр `q` содержит название или часть названия рецепта.
+
+Пример:
+
+```bash
+curl "http://localhost:3000/api/recipes/search?q=паста"
+```
+
+### Поиск рецептов по выбранным ингредиентам
+
+Метод поддерживает передачу идентификаторов ингредиентов через JSON:
+
+```http
+POST /api/recipes/searchByIngredients
+Content-Type: application/json
+```
+
+Пример тела запроса:
+
+```json
+{
+  "ids": [1, 2, 3]
+}
+```
+
+Пример вызова:
+
+```bash
+curl -X POST "http://localhost:3000/api/recipes/searchByIngredients" \
+  -H "Content-Type: application/json" \
+  -d '{"ids":[1,2,3]}'
+```
+
+Также маршрут поддерживает GET-запрос с параметром `ids`:
+
+```http
+GET /api/recipes/searchByIngredients?ids=1,2,3
+```
+
+### Получение рецепта по идентификатору
+
+```http
+GET /api/recipes/1
+```
+
+Замените `1` на идентификатор нужного рецепта.
+
+Фактические поля ответа зависят от реализации сервисов и возвращаемых ими объектов.
+
+## Структура базы данных
+
+База данных PostgreSQL хранит информацию о рецептах, ингредиентах и их связях.
+
+### Ingredient
+
+Таблица ингредиентов.
+
+| Поле | Тип | Назначение |
+|---|---|---|
+| `id` | Integer | Первичный ключ |
+| `name` | Text / String | Название ингредиента, уникальное |
+| `calories` | Float | Калорийность, необязательное значение |
+| `proteins` | Float | Белки, необязательное значение |
+| `fats` | Float | Жиры, необязательное значение |
+| `carbohydrates` | Float | Углеводы, необязательное значение |
+
+### Recipe
+
+Таблица рецептов.
+
+| Поле | Тип | Назначение |
+|---|---|---|
+| `id` | Integer | Первичный ключ |
+| `name` | Text / String | Название рецепта, уникальное |
+| `description` | Text / String | Описание рецепта |
+
+### RecipeIngredient
+
+Промежуточная таблица, связывающая рецепты с ингредиентами.
+
+| Поле | Тип | Назначение |
+|---|---|---|
+| `recipeId` | Integer | Идентификатор рецепта |
+| `ingredientId` | Integer | Идентификатор ингредиента |
+| `amountGr` | Float | Количество ингредиента в граммах |
+| `customAmount` | Float | Дополнительное количество, необязательное |
+| `customUnit` | String | Единица дополнительного количества, необязательная |
+
+Составной первичный ключ `RecipeIngredient` формируется из `recipeId` и `ingredientId`. Внешние ключи связывают записи с таблицами `Recipe` и `Ingredient`.
+
+В текущей схеме `Recipe` отдельного поля для URL изображения нет. Изображения для карточек могут задаваться на стороне frontend.
+
+## Разработка и отладка
+
+### Пересборка после изменения кода
+
+Если код backend включён в Docker-образ, пересоберите и перезапустите сервис:
+
+```bash
+docker compose up --build -d backend
+```
+
+Для frontend используйте соответствующий сервис из `docker-compose.yml`, если его сборка или раздача статических файлов требует пересборки.
+
+Если frontend монтируется в контейнер как локальная папка, изменения могут применяться без пересборки — это зависит от конфигурации Compose.
+
+### Просмотр логов
+
+Все сервисы:
+
+```bash
+docker compose logs -f
+```
+
+Только backend:
+
+```bash
+docker compose logs -f backend
+```
+
+Только PostgreSQL:
+
+```bash
+docker compose logs -f postgres
+```
+
+### Проверка контейнеров
+
+```bash
+docker compose ps
+```
+
+### Проверка конфигурации Compose
+
+```bash
+docker compose config
+```
+
+Эта команда помогает проверить итоговую конфигурацию сервисов и переменных окружения. Не публикуйте вывод, если он содержит секреты.
+
+## Решение проблем
+
+### Frontend не открывается
+
+1. Выполните `docker compose ps`.
+2. Проверьте, что frontend-контейнер запущен.
+3. Проверьте, какой порт указан для frontend в `docker-compose.yml`.
+4. Посмотрите логи соответствующего сервиса.
+
+### Backend недоступен
+
+1. Проверьте `http://localhost:3000/api/health`.
+2. Выполните `docker compose logs --tail=100 backend`.
+3. Проверьте переменные окружения и подключение к PostgreSQL.
+4. Убедитесь, что порт `3000` не занят другим приложением.
+
+### Рецепты или ингредиенты не отображаются
+
+1. Убедитесь, что PostgreSQL запущен.
+2. Проверьте наличие таблиц через `\dt`.
+3. Проверьте количество записей в `Ingredient` и `Recipe`.
+4. Проверьте запросы в браузере во вкладке Network.
+5. Посмотрите логи backend на предмет ошибок SQL или API.
+
+### Ошибка подключения к PostgreSQL
+
+Внутри Docker-сети backend должен обращаться к PostgreSQL по имени сервиса, указанному в `docker-compose.yml`. Адрес `localhost` внутри backend-контейнера означает сам контейнер backend, а не контейнер базы данных.
+
+Проверьте имя сервиса, порт, базу данных, имя пользователя, пароль и переменные окружения.
+
+### Изображения рецептов не отображаются
+
+Если используются локальные изображения, убедитесь, что файлы находятся в нужной папке frontend и доступны по соответствующему URL.
+
+Например, файл:
+
+```text
+frontend/assets/oguzok.jpg
+```
+
+при корректной раздаче статических файлов может открываться по адресу:
+
+```text
+http://localhost:8080/assets/oguzok.jpg
+```
+
+Если изображение не открывается напрямую, проверьте путь к файлу и настройки раздачи frontend.
+
+### Данные исчезли после перезапуска
+
+Проверьте, что PostgreSQL использует постоянный Docker volume, а приложение подключается к правильной базе данных.
+
+Не удаляйте volume, если нужно сохранить рецепты, ингредиенты и другие данные.
+
+## Примечания
+
+- Docker Compose является рекомендуемым способом локального запуска проекта.
+- PostgreSQL должен быть доступен backend до выполнения запросов к данным.
+- Для работы поиска в базе должны существовать необходимые таблицы и данные.
+- Структура базы данных должна соответствовать контракту Prisma и используемым сервисам.
+- Файл `README.md` описывает назначение и запуск проекта; фактическая конфигурация определяется исходным кодом и файлами Docker Compose.
+
+## Автор проекта
+
+Cookly — учебный проект, посвящённый разработке кулинарного веб-приложения с frontend-интерфейсом, backend API и базой данных PostgreSQL.
