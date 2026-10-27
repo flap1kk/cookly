@@ -9,3 +9,4 @@ logs/
 *.log
 
 .DS_Store
+content/~$recipes_import_filled.xlsx
