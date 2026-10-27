@@ -1,6 +1,6 @@
 import type {IngredientInDTO, IngredientOutDTO, IngredientRepository} from "../contracts/repository/ingredient.repo";
 import {db} from "../../../prisma/db";
-import {RecordNotFoundException} from "./exceptions";
+import {RecordNotFoundException} from "../contracts/repository/repository.exceptions";
 
 
 export class PrismaIngredientRepository implements IngredientRepository {

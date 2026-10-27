@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff4e6"/><stop offset="1" stop-color="#ffe0bd"/></linearGradient>
+    <linearGradient id="plate" x1="0" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#f1e5d7"/></linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#bg)"/>
+  <circle cx="400" cy="238" r="174" fill="#e4c7a8" opacity=".45"/>
+  <circle cx="400" cy="225" r="166" fill="url(#plate)" stroke="#e5d4c2" stroke-width="9"/>
+  <circle cx="400" cy="225" r="121" fill="#f9eddd" stroke="#e8d9c8" stroke-width="4"/>
+  <path d="M325 190c25-36 76-42 105-9 20 23 9 50-14 62-29 15-43 47-76 33-42-18-41-58-15-86Z" fill="#e9a54f"/>
+  <path d="M390 170c30-18 73-3 81 28 6 24-15 36-37 45-23 10-20 40-49 42-31 3-50-26-38-53 10-22 16-48 43-62Z" fill="#edbc67"/>
+  <circle cx="354" cy="202" r="13" fill="#d76c36"/><circle cx="423" cy="230" r="15" fill="#cf6436"/><circle cx="379" cy="266" r="11" fill="#d76c36"/>
+  <path d="M330 228c23 8 31 25 26 46M442 178c-17 11-23 24-20 39M411 270c-3-15 4-28 18-34" fill="none" stroke="#66935a" stroke-width="9" stroke-linecap="round"/>
+  <text x="400" y="438" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="32" fill="#a64b17">Cookly</text>
+  <text x="400" y="466" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#a96c42">Фото рецепта временно недоступно</text>
+</svg>
